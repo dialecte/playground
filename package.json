@@ -1,0 +1,56 @@
+{
+	"name": "@dialecte/playground",
+	"version": "0.0.1",
+	"type": "module",
+	"description": "Dialecte - Playground",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/dialecte/playground.git"
+	},
+	"scripts": {
+		"dev": "vite",
+		"build": "run-p type-check \"build-only {@}\" --",
+		"preview": "vite preview",
+		"build-only": "vite build",
+		"//====== CHECK ======//": "",
+		"check": "run-p type-check lint:check format:check",
+		"type-check": "vue-tsc --build",
+		"lint:check": "oxlint",
+		"lint:fix": "oxlint . --fix -D correctness --ignore-path .gitignore",
+		"format:check": "oxfmt --check",
+		"format:fix": "oxfmt"
+	},
+	"dependencies": {
+		"@dialecte/scl": "file:../scl",
+		"@guolao/vue-monaco-editor": "^1.6.0",
+		"@tailwindcss/vite": "^4.2.1",
+		"@vueuse/core": "^14.1.0",
+		"i": "^0.3.7",
+		"monaco-editor": "^0.55.1",
+		"npm": "^11.10.1",
+		"oxfmt": "^0.35.0",
+		"oxlint": "^1.50.0",
+		"oxlint-tsgolint": "^0.14.2",
+		"pinia": "^3.0.4",
+		"reka-ui": "^2.8.2",
+		"tailwindcss": "^4.2.1",
+		"vue": "^3.5.26",
+		"xml-formatter": "^3.6.7"
+	},
+	"devDependencies": {
+		"@tsconfig/node24": "^24.0.3",
+		"@types/node": "^24.10.4",
+		"@vitejs/plugin-vue": "^6.0.3",
+		"@vue/tsconfig": "^0.8.1",
+		"npm-run-all2": "^8.0.4",
+		"prettier": "^3.8.1",
+		"typescript": "~5.9.3",
+		"vite": "beta",
+		"vite-plugin-vue-devtools": "^8.0.5",
+		"vue-tsc": "^3.2.2"
+	},
+	"engines": {
+		"node": "^20.19.0 || >=22.12.0"
+	}
+}
