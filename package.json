@@ -22,7 +22,7 @@
 		"format:fix": "oxfmt"
 	},
 	"dependencies": {
-		"@dialecte/scl": "file:../scl",
+		"@dialecte/scl": "^0.0.11",
 		"@guolao/vue-monaco-editor": "^1.6.0",
 		"@tailwindcss/vite": "^4.2.1",
 		"@vueuse/core": "^14.1.0",
