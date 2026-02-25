@@ -9,9 +9,11 @@ import {
 	MenubarTrigger,
 } from 'reka-ui'
 
-import { useFileDialog } from '@vueuse/core'
+
 
 import { usePlaygroundStore } from '@/stores'
+
+const props = defineProps<{ openFile: () => void }>()
 
 const currentMenu = ref('')
 
@@ -20,21 +22,6 @@ const currentMenu = ref('')
 // store
 const store = usePlaygroundStore()
 
-const { open, reset, onCancel, onChange } = useFileDialog({
-	accept: '.fsd, .asd, .xml, .scd, .ssd',
-	multiple: false,
-})
-
-onChange(async (files) => {
-	const filesArray = Array.from(files || [])
-	if (!filesArray.length) return
-
-	const file = filesArray[0]
-	if (file) await store.importFile(file)
-})
-const handleNotImplemented = () => {
-	alert('Not implemented yet! 🤫')
-}
 </script>
 
 <template>
@@ -54,25 +41,25 @@ const handleNotImplemented = () => {
 				>
 					<MenubarItem
 						class="group text-xs leading-none text-orange-500 flex items-center h-[25px] px-[10px] relative select-none outline-none data-[state=open]:bg-orange-100 data-[state=open]:text-orange-500 data-[highlighted]:bg-gradient-to-br data-[highlighted]:from-orange-500 data-[highlighted]:to-orange-500 data-[highlighted]:text-orange-100 data-[highlighted]:data-[state=open]:text-orange-100 data-[disabled]:text-gray-300 data-[disabled]:pointer-events-none"
-						@click="open"
+						@click="props.openFile()"
 					>
 						Open File
-						<!-- <div
+						<div
               class="ml-auto pl-5 text-gray-500 group-data-[highlighted]:text-white group-data-[disabled]:text-gray-300"
             >
-              ⌘ N
-            </div> -->
+              ⌃ O
+            </div>
 					</MenubarItem>
 					<MenubarItem
 						class="group text-xs leading-none text-orange-500 flex items-center h-[25px] px-[10px] relative select-none outline-none data-[state=open]:bg-orange-100 data-[state=open]:text-orange-500 data-[highlighted]:bg-gradient-to-br data-[highlighted]:from-orange-500 data-[highlighted]:to-orange-500 data-[highlighted]:text-orange-100 data-[highlighted]:data-[state=open]:text-orange-100 data-[disabled]:text-gray-300 data-[disabled]:pointer-events-none"
 						@click="store.exportFile()"
 					>
 						Save File
-						<!-- <div
+						<div
               class="ml-auto pl-5 text-gray-500 group-data-[highlighted]:text-white group-data-[disabled]:text-gray-300"
             >
-              ⌘ S
-            </div> -->
+              ⌃ S
+            </div>
 					</MenubarItem>
 				</MenubarContent>
 			</MenubarPortal>
@@ -95,7 +82,6 @@ const handleNotImplemented = () => {
 						class="group text-xs leading-none text-orange-500 flex items-center h-[25px] px-[10px] relative select-none outline-none data-[state=open]:bg-orange-100 data-[state=open]:text-orange-500 data-[highlighted]:bg-gradient-to-br data-[highlighted]:from-orange-500 data-[highlighted]:to-orange-500 data-[highlighted]:text-orange-100 data-[highlighted]:data-[state=open]:text-orange-100 data-[disabled]:text-gray-300 data-[disabled]:pointer-events-none"
 						:disabled="!store.canUndo"
 						@click="store.undo()"
-						@keydown.meta.z.prevent.stop="store.undo()"
 					>
 						Undo
 						<div
@@ -108,7 +94,6 @@ const handleNotImplemented = () => {
 						class="group text-xs leading-none text-orange-500 flex items-center h-[25px] px-[10px] relative select-none outline-none data-[state=open]:bg-orange-100 data-[state=open]:text-orange-500 data-[highlighted]:bg-gradient-to-br data-[highlighted]:from-orange-500 data-[highlighted]:to-orange-500 data-[highlighted]:text-orange-100 data-[highlighted]:data-[state=open]:text-orange-100 data-[disabled]:text-gray-300 data-[disabled]:pointer-events-none"
 						:disabled="!store.canRedo"
 						@click="store.redo()"
-						@keydown.meta.shift.z.prevent.stop="store.redo()"
 					>
 						Redo
 						<div

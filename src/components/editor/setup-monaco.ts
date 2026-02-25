@@ -100,6 +100,16 @@ declare global {
 	const importSclFiles: typeof _importSclFiles
 	const exportSclFile: typeof _exportSclFile
 	const DATABASE_NAME: string
+
+	interface Console {
+		log(...args: any[]): void
+		warn(...args: any[]): void
+		error(...args: any[]): void
+		info(...args: any[]): void
+		debug(...args: any[]): void
+		clear(): void
+	}
+	const console: Console
 }
 
 export {}

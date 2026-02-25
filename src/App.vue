@@ -5,9 +5,20 @@ import XmlDiffViewer from './components/editor/XmlDiffViewer.vue'
 import ConsolePanel from './components/editor/ConsolePanel.vue'
 import MenuBar from './components/MenuBar.vue'
 import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'reka-ui'
+import { useFileDialog } from '@vueuse/core'
 import { usePlaygroundStore } from '@/stores/playground.store'
 
 const store = usePlaygroundStore()
+
+const { open: openFileDialog, onChange } = useFileDialog({
+	accept: '.fsd, .asd, .xml, .scd, .ssd',
+	multiple: false,
+})
+
+onChange(async (files) => {
+	const file = Array.from(files || [])[0]
+	if (file) await store.importFile(file)
+})
 
 function isInsideCodeEditor() {
 	const active = document.activeElement
@@ -30,6 +41,20 @@ function handleKeydown(e: KeyboardEvent) {
 	if (mod && e.key === 'Enter') {
 		e.preventDefault()
 		store.run()
+		return
+	}
+
+	// Ctrl/Cmd + O → open file dialog
+	if (mod && e.key === 'o') {
+		e.preventDefault()
+		openFileDialog()
+		return
+	}
+
+	// Ctrl/Cmd + S → save file
+	if (mod && e.key === 's') {
+		e.preventDefault()
+		store.exportFile()
 		return
 	}
 
@@ -65,13 +90,13 @@ function handleXmlPanelKeydown(e: KeyboardEvent) {
 }
 
 onMounted(() => {
-	window.addEventListener('keydown', handleKeydown)
+	window.addEventListener('keydown', handleKeydown, { capture: true })
 	const xmlPanel = document.getElementById('xml-panel')
 	xmlPanel?.addEventListener('keydown', handleXmlPanelKeydown, true)
 	store.init()
 })
 onUnmounted(() => {
-	window.removeEventListener('keydown', handleKeydown)
+	window.removeEventListener('keydown', handleKeydown, { capture: true })
 	const xmlPanel = document.getElementById('xml-panel')
 	xmlPanel?.removeEventListener('keydown', handleXmlPanelKeydown, true)
 })
@@ -82,7 +107,7 @@ onUnmounted(() => {
 	<header class="flex items-center justify-between px-3 h-11 bg-white border-b text-xs font-semibold gap-3">
 		<img src="/logo-reversed.svg" class="size-7" />
 		<span class="text-orange-500 whitespace-nowrap">Dialecte Playground</span>
-		<MenuBar />
+		<MenuBar :open-file="openFileDialog" />
 		<div class="flex items-center gap-2 ml-auto">
 			<span v-if="store.error" class="text-red-700 max-w-[400px] truncate">
 				{{ store.error }}

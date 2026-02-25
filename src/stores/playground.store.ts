@@ -4,6 +4,7 @@ import { ref, computed } from 'vue'
 import { useStorage } from '@vueuse/core'
 import xmlFormat from 'xml-formatter'
 import * as monaco from 'monaco-editor'
+import { useFileDialog } from '@vueuse/core'
 
 const DEFAULT_DATABASE_NAME = 'playground'
 
@@ -36,6 +37,19 @@ export const usePlaygroundStore = defineStore('playground', () => {
 	const isRunning = ref(false)
 	const error = ref<string | null>(null)
 	const consoleEntries = ref<ConsoleEntry[]>([])
+
+	const { open: openNewFile, onChange } = useFileDialog({
+	accept: '.fsd, .asd, .xml, .scd, .ssd',
+	multiple: false,
+})
+
+	onChange(async (files) => {
+		const filesArray = Array.from(files || [])
+		if (!filesArray.length) return
+
+		const file = filesArray[0]
+		if (file) await importFile(file)
+	})
 
 	/** XML string history — index 0 is current, higher indices are older */
 	const xmlHistory = ref<string[]>([])
@@ -272,6 +286,7 @@ export const usePlaygroundStore = defineStore('playground', () => {
 		canUndo,
 		canRedo,
 		run,
+		openNewFile,
 		init,
 		importFile,
 		exportFile,
