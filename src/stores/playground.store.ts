@@ -28,9 +28,9 @@ const document = openSclDocument({ type: 'local', databaseName: DATABASE_NAME })
 
 await document.transaction(async (tx) => {
 	const root = await tx.getRoot()
-	const sub = await tx.findChildren(root, { tagName: 'Substation' })
-	if (sub.length > 0) {
-		await tx.addChild(sub[0], { tagName: 'VoltageLevel', attributes: { name: 'VL1' } })
+	const { Substation: substations } = await tx.findDescendants(root, { tagName: 'Substation' })
+	if (substations.length > 0) {
+		await tx.addChild(substations[0], { tagName: 'VoltageLevel', attributes: { name: 'VL1' } })
 	}
 })
 `
