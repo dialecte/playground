@@ -1,11 +1,11 @@
+import { loader } from '@guolao/vue-monaco-editor'
 import * as monaco from 'monaco-editor'
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
-import { loader } from '@guolao/vue-monaco-editor'
-import dtsLibs from 'virtual:dts-libs'
-import * as prettier from 'prettier/standalone'
-import prettierPluginTypescript from 'prettier/plugins/typescript'
 import prettierPluginEstree from 'prettier/plugins/estree'
+import prettierPluginTypescript from 'prettier/plugins/typescript'
+import * as prettier from 'prettier/standalone'
+import dtsLibs from 'virtual:dts-libs'
 
 let initialized = false
 
@@ -42,6 +42,8 @@ export function initMonaco() {
 		baseUrl: 'file:///',
 		paths: {
 			'@dialecte/core': ['file:///node_modules/@dialecte/core/index.d.ts'],
+			'@dialecte/core/helpers': ['file:///node_modules/@dialecte/core/helpers.d.ts'],
+			'@dialecte/core/utils': ['file:///node_modules/@dialecte/core/utils.d.ts'],
 			'@dialecte/scl/v2019C1': ['file:///node_modules/@dialecte/scl/v2019C1.d.ts'],
 		},
 	})
@@ -93,12 +95,16 @@ export function parser(strict?: boolean, options?: any): SAXParser
 	// types (including ChildrenOf constraints on addChild). A plain `declare function`
 	// with `ReturnType<typeof import(...)>` often fails in Monaco's TS worker.
 	const playgroundGlobals = `
-import { createSclDialecte as _createSclDialecte, importSclFiles as _importSclFiles, exportSclFile as _exportSclFile } from "@dialecte/scl/v2019C1"
+import { openSclDocument as _openSclDocument, importSclFiles as _importSclFiles, exportSclFile as _exportSclFile } from "@dialecte/scl/v2019C1"
+import * as _helpers from "@dialecte/core/helpers"
+import * as _utils from "@dialecte/core/utils"
 
 declare global {
-	const createSclDialecte: typeof _createSclDialecte
+	const openSclDocument: typeof _openSclDocument
 	const importSclFiles: typeof _importSclFiles
 	const exportSclFile: typeof _exportSclFile
+	const helpers: typeof _helpers
+	const utils: typeof _utils
 	const DATABASE_NAME: string
 
 	interface Console {

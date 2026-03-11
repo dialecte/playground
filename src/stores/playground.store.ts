@@ -1,26 +1,38 @@
-import { createSclDialecte, importSclFiles, exportSclFile } from '@dialecte/scl/v2019C1'
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import * as CoreHelpers from '@dialecte/core/helpers'
+import * as CoreUtils from '@dialecte/core/utils'
+import { openSclDocument, importSclFiles, exportSclFile } from '@dialecte/scl/v2019C1'
 import { useStorage } from '@vueuse/core'
-import xmlFormat from 'xml-formatter'
-import * as monaco from 'monaco-editor'
 import { useFileDialog } from '@vueuse/core'
+import * as monaco from 'monaco-editor'
+import { defineStore } from 'pinia'
+import { reactive, ref } from 'vue'
+import xmlFormat from 'xml-formatter'
+
+import type { DocumentState } from '@dialecte/core'
+
+type SclDocument = ReturnType<typeof openSclDocument>
 
 const DEFAULT_DATABASE_NAME = 'playground'
 
 function defaultCode() {
 	return `// Write your Dialecte code here
-// The dialecte functions are available as globals.
-// DATABASE_NAME always points to the current database.
+// Globals available:
+//   openSclDocument, importSclFiles, exportSclFile — SCL document API
+//   DATABASE_NAME — name of the current IndexedDB database
+//   helpers — type guards (isRawRecord, isTrackedRecord, isRecordOf, …)
+//             and converters (toRawRecord, toTrackedRecord, toRef, standardizeRecord, …)
+//   utils   — assert(condition, message)
 // After each run, the XML output updates automatically.
 
-const dialecte = createSclDialecte({ databaseName: DATABASE_NAME })
+const document = openSclDocument({ type: 'local', databaseName: DATABASE_NAME })
 
-await dialecte
-	.fromRoot()
-	.goToElement({ tagName: 'Substation' })
-	.addChild({ tagName: 'VoltageLevel', attributes: { name: 'VL1' } })
-	.commit()
+await document.transaction(async (tx) => {
+	const root = await tx.getRoot()
+	const sub = await tx.findChildren(root, { tagName: 'Substation' })
+	if (sub.length > 0) {
+		await tx.addChild(sub[0], { tagName: 'VoltageLevel', attributes: { name: 'VL1' } })
+	}
+})
 `
 }
 
@@ -39,9 +51,9 @@ export const usePlaygroundStore = defineStore('playground', () => {
 	const consoleEntries = ref<ConsoleEntry[]>([])
 
 	const { open: openNewFile, onChange } = useFileDialog({
-	accept: '.fsd, .asd, .xml, .scd, .ssd',
-	multiple: false,
-})
+		accept: '.fsd, .asd, .xml, .scd, .ssd',
+		multiple: false,
+	})
 
 	onChange(async (files) => {
 		const filesArray = Array.from(files || [])
@@ -52,19 +64,24 @@ export const usePlaygroundStore = defineStore('playground', () => {
 	})
 
 	/** XML string history — index 0 is current, higher indices are older */
-	const xmlHistory = ref<string[]>([])
-	const historyIndex = ref(0)
+	const currentXmlString = ref('')
+	const previousXmlString = ref('')
 
-	// ====== COMPUTED ======
-	const currentXmlString = computed(() => xmlHistory.value[historyIndex.value] ?? '')
-	const previousXmlString = computed(() => {
-		const prevIdx = historyIndex.value + 1
-		if (prevIdx >= xmlHistory.value.length) return currentXmlString.value
-		return xmlHistory.value[prevIdx]
+	const canUndo = ref(false)
+	const canRedo = ref(false)
+
+	/** The active Document instance (created on init or import) */
+	let sclDocument: SclDocument | null = null
+
+	/** Reactive mirror of doc.state — Vue tracks all field mutations automatically */
+	const documentState = reactive<DocumentState>({
+		loading: false,
+		error: null,
+		activity: null,
+		progress: null,
+		history: [],
+		lastUpdate: null,
 	})
-
-	const canUndo = computed(() => historyIndex.value < xmlHistory.value.length - 1)
-	const canRedo = computed(() => historyIndex.value > 0)
 
 	// ====== INTERNAL HELPERS ======
 
@@ -84,23 +101,25 @@ export const usePlaygroundStore = defineStore('playground', () => {
 		})
 	}
 
-	/** Replace DB contents with an XML string */
-	async function xmlToDb(xml: string) {
-		const dialecte = createSclDialecte({ databaseName: databaseName.value })
-		dialecte.getDatabaseInstance().delete()
-
-		const file = new File([xml], `${databaseName.value}.scd`, { type: 'application/xml' })
-		await importSclFiles({ files: [file] })
+	/** Refresh the XML output from the current DB state */
+	async function refreshXml() {
+		const oldXml = currentXmlString.value
+		const xml = await dbToXml()
+		previousXmlString.value = oldXml
+		currentXmlString.value = xml
 	}
 
-	/** Push a new XML snapshot into history (discards any redo-able future) */
-	function pushSnapshot(xml: string) {
-		if (historyIndex.value > 0) {
-			xmlHistory.value = xmlHistory.value.slice(historyIndex.value)
-			historyIndex.value = 0
+	/** Open (or reopen) the SCL document for the current database */
+	function ensureDocument(): SclDocument {
+		if (!sclDocument) {
+			sclDocument = openSclDocument({ type: 'local', databaseName: databaseName.value })
+			// Swap documentState fields to point at doc.state
+			// Object.assign keeps the same reactive proxy, just replaces contents
+			Object.assign(documentState, sclDocument.state)
+			// Now make documentState the live state object Document mutates
+			;(sclDocument as unknown as { state: DocumentState }).state = documentState
 		}
-		xmlHistory.value.unshift(xml)
-		if (xmlHistory.value.length > 50) xmlHistory.value.length = 50
+		return sclDocument
 	}
 
 	// ====== ACTIONS ======
@@ -172,17 +191,35 @@ export const usePlaygroundStore = defineStore('playground', () => {
 
 		try {
 			const asyncFn = new Function(
-				'createSclDialecte',
+				'openSclDocument',
 				'importSclFiles',
 				'exportSclFile',
+				'helpers',
+				'utils',
 				'DATABASE_NAME',
 				`return (async () => {\n${code.value}\n})()`,
 			)
 
-			await asyncFn(createSclDialecte, importSclFiles, exportSclFile, databaseName.value)
+			await asyncFn(
+				openSclDocument,
+				importSclFiles,
+				exportSclFile,
+				CoreHelpers,
+				CoreUtils,
+				databaseName.value,
+			)
 
-			const xml = await dbToXml()
-			pushSnapshot(xml)
+			// Re-create document in case user code destroyed/recreated the DB
+			sclDocument = null
+			Object.assign(documentState, {
+				loading: false,
+				error: null,
+				activity: null,
+				progress: null,
+				history: [],
+				lastUpdate: null,
+			})
+			await refreshXml()
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e)
 			error.value = msg
@@ -201,17 +238,19 @@ export const usePlaygroundStore = defineStore('playground', () => {
 		error.value = null
 		try {
 			// Delete previous DB if it exists
-			const oldDialecte = createSclDialecte({ databaseName: databaseName.value })
-			oldDialecte.getDatabaseInstance().delete()
+			if (sclDocument) {
+				await sclDocument.destroy()
+				sclDocument = null
+			}
 
 			// Rename to playground.scd so the DB is always called "playground"
 			const renamedFile = new File([file], 'playground.scd', { type: file.type })
 			await importSclFiles({ files: [renamedFile] })
 			databaseName.value = DEFAULT_DATABASE_NAME
 
-			const xml = await dbToXml()
-			xmlHistory.value = [xml]
-			historyIndex.value = 0
+			await refreshXml()
+			// No diff on fresh import
+			previousXmlString.value = currentXmlString.value
 		} catch (e) {
 			error.value = e instanceof Error ? e.message : String(e)
 		}
@@ -231,32 +270,36 @@ export const usePlaygroundStore = defineStore('playground', () => {
 		}
 	}
 
-	/** Undo — move back in history & restore DB to that state */
+	/** Undo — delegate to Document store changelog */
 	async function undo() {
-		if (!canUndo.value) return
-		historyIndex.value++
-		await xmlToDb(currentXmlString.value)
+		const doc = ensureDocument()
+		await doc.undo()
+		await refreshXml()
 	}
 
-	/** Redo — move forward in history & restore DB to that state */
+	/** Redo — delegate to Document store changelog */
 	async function redo() {
-		if (!canRedo.value) return
-		historyIndex.value--
-		await xmlToDb(currentXmlString.value)
+		const doc = ensureDocument()
+		await doc.redo()
+		await refreshXml()
 	}
 
 	/** Reset everything */
 	async function resetPlayground() {
 		try {
-			const dialecte = createSclDialecte({ databaseName: databaseName.value })
-			await dialecte.getDatabaseInstance().delete()
+			if (sclDocument) {
+				await sclDocument.destroy()
+				sclDocument = null
+			}
 		} catch {
 			// ignore
 		}
 		databaseName.value = DEFAULT_DATABASE_NAME
 		code.value = defaultCode()
-		xmlHistory.value = []
-		historyIndex.value = 0
+		currentXmlString.value = ''
+		previousXmlString.value = ''
+		canUndo.value = false
+		canRedo.value = false
 		error.value = null
 
 		// Clear localStorage keys so useStorage picks up defaults on next load
@@ -268,8 +311,8 @@ export const usePlaygroundStore = defineStore('playground', () => {
 		try {
 			const xml = await dbToXml()
 			if (xml && xml.length > 80) {
-				xmlHistory.value = [xml]
-				historyIndex.value = 0
+				currentXmlString.value = xml
+				previousXmlString.value = xml
 			}
 		} catch {
 			// DB doesn't exist or is empty — nothing to restore
@@ -285,6 +328,7 @@ export const usePlaygroundStore = defineStore('playground', () => {
 		previousXmlString,
 		canUndo,
 		canRedo,
+		documentState,
 		run,
 		openNewFile,
 		init,

@@ -42,6 +42,16 @@ export default defineConfig({
 					distDir: coreDist,
 				},
 				{
+					name: '@dialecte/core',
+					subpath: './helpers',
+					distDir: coreDist,
+				},
+				{
+					name: '@dialecte/core',
+					subpath: './utils',
+					distDir: coreDist,
+				},
+				{
 					name: '@dialecte/scl',
 					subpath: './v2019C1',
 					distDir: sclDist,

@@ -1,6 +1,6 @@
 {
 	"name": "@dialecte/playground",
-	"version": "0.0.3",
+	"version": "0.1.0",
 	"type": "module",
 	"description": "Dialecte - Playground",
 	"license": "MIT",
@@ -22,7 +22,8 @@
 		"format:fix": "oxfmt"
 	},
 	"dependencies": {
-		"@dialecte/scl": "^0.0.12",
+		"@dialecte/core": "0.1.0",
+		"@dialecte/scl": "0.1.0",
 		"@guolao/vue-monaco-editor": "^1.6.0",
 		"@tailwindcss/vite": "^4.2.1",
 		"@vueuse/core": "^14.1.0",

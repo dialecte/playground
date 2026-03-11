@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+
 import type { Plugin } from 'vite'
 
 const VIRTUAL_MODULE_ID = 'virtual:dts-libs'
@@ -18,7 +19,10 @@ interface DtsCollectorOptions {
 	packages: PackageEntry[]
 }
 
-function collectDtsFiles(dir: string, base: string = ''): Array<{ relativePath: string; content: string }> {
+function collectDtsFiles(
+	dir: string,
+	base: string = '',
+): Array<{ relativePath: string; content: string }> {
 	const results: Array<{ relativePath: string; content: string }> = []
 	if (!fs.existsSync(dir)) return results
 
@@ -72,12 +76,19 @@ export function dtsCollectorPlugin(options: DtsCollectorOptions): Plugin {
 				// or file:///node_modules/@dialecte/scl/v2019C1.d.ts
 				if (pkg.subpath && pkg.subpath !== '.') {
 					const subpathClean = pkg.subpath.replace(/^\.\//, '')
+					const distFile = path.join(pkg.distDir, `${subpathClean}.d.ts`)
+					const isFlat = fs.existsSync(distFile)
+
 					// index.d.ts under the subpath folder
 					const shimPath = `file:///node_modules/${pkg.name}/${subpathClean}/index.d.ts`
-					libs[shimPath] = `export * from '../dist/${subpathClean}/index';\n`
+					libs[shimPath] = isFlat
+						? `export * from '../dist/${subpathClean}';\n`
+						: `export * from '../dist/${subpathClean}/index';\n`
 					// Also a .d.ts file next to the folder
 					const shimPath2 = `file:///node_modules/${pkg.name}/${subpathClean}.d.ts`
-					libs[shimPath2] = `export * from './dist/${subpathClean}/index';\n`
+					libs[shimPath2] = isFlat
+						? `export * from './dist/${subpathClean}';\n`
+						: `export * from './dist/${subpathClean}/index';\n`
 				}
 			}
 
