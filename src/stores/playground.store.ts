@@ -207,7 +207,7 @@ export const usePlaygroundStore = defineStore('playground', () => {
 				exportSclFile,
 				CoreHelpers,
 				CoreUtils,
-				projectName.value,
+				databaseName.value,
 			)
 
 			// Re-create document in case user code destroyed/recreated the DB
@@ -259,12 +259,8 @@ export const usePlaygroundStore = defineStore('playground', () => {
 
 			// Rename to playground.scd so the DB is always called "playground"
 			const renamedFile = new File([file], 'playground.scd', { type: file.type })
-			const result = await importSclFiles({
-				files: [renamedFile],
-				projectName: DEFAULT_DATABASE_NAME,
-			})
-			projectName.value = DEFAULT_DATABASE_NAME
-			fileId.value = result.fileIds[0]
+			const result = await importSclFiles({ files: [renamedFile] })
+			databaseName.value = DEFAULT_DATABASE_NAME
 
 			await refreshXml()
 			// No diff on fresh import
@@ -279,8 +275,7 @@ export const usePlaygroundStore = defineStore('playground', () => {
 		error.value = null
 		try {
 			await exportSclFile({
-				projectName: projectName.value,
-				fileId: fileId.value,
+				databaseName: databaseName.value,
 				extension: '.scd',
 				withDownload: true,
 			})
@@ -313,7 +308,7 @@ export const usePlaygroundStore = defineStore('playground', () => {
 		} catch {
 			// ignore
 		}
-		projectName.value = DEFAULT_DATABASE_NAME
+		databaseName.value = DEFAULT_DATABASE_NAME
 		code.value = defaultCode()
 		currentXmlString.value = ''
 		previousXmlString.value = ''
@@ -338,7 +333,7 @@ export const usePlaygroundStore = defineStore('playground', () => {
 		}
 	}
 	return {
-		projectName,
+		databaseName,
 		code,
 		isRunning,
 		error,
