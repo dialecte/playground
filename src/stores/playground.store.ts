@@ -24,7 +24,7 @@ function defaultCode() {
 //   utils   — invariant(condition, message)
 // After each run, the XML output updates automatically.
 
-const document = openSclDocument({ type: 'local', databaseName: DATABASE_NAME })
+const document = openSclDocument({ storage: { type: 'local', databaseName: DATABASE_NAME } })
 
 await document.transaction(async (tx) => {
 	const root = await tx.getRoot()
@@ -112,7 +112,7 @@ export const usePlaygroundStore = defineStore('playground', () => {
 	/** Open (or reopen) the SCL document for the current database */
 	function ensureDocument(): SclDocument {
 		if (!sclDocument) {
-			sclDocument = openSclDocument({ type: 'local', databaseName: databaseName.value })
+			sclDocument = openSclDocument({ storage: { type: 'local', databaseName: databaseName.value } })
 			// Swap documentState fields to point at doc.state
 			// Object.assign keeps the same reactive proxy, just replaces contents
 			Object.assign(documentState, sclDocument.state)

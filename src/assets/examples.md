@@ -61,7 +61,7 @@ currentChainWithUpdatedFunctionCatRefs.commit()
 
 ```ts
 // ADD A VOLTAGE LEVEL
-const document = openSclDocument({ type: 'local', databaseName: DATABASE_NAME })
+const document = openSclDocument({ storage: { type: 'local', databaseName: DATABASE_NAME } })
 
 await document.transaction(async (tx) => {
 	const root = await tx.getRoot()
@@ -74,7 +74,7 @@ await document.transaction(async (tx) => {
 
 ```ts
 // EXPORT TO FILE
-const document = openSclDocument({ type: 'local', databaseName: DATABASE_NAME })
+const document = openSclDocument({ storage: { type: 'local', databaseName: DATABASE_NAME } })
 
 const root = await document.query.getRoot()
 const substations = await document.query.findChildren(root, { tagName: 'Substation' })
