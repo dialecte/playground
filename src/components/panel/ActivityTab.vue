@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+
 import { usePlaygroundStore } from '@/stores/playground.store'
 
 const store = usePlaygroundStore()
@@ -33,7 +34,7 @@ function pct(current: number, total: number) {
 	<div class="h-full font-mono text-xs p-3 space-y-3 overflow-y-auto">
 		<!-- Idle state -->
 		<div
-			v-if="!store.documentState.activity && !store.documentState.progress && !store.isRunning"
+			v-if="!store.documentState.loading && !store.documentState.progress && !store.isRunning"
 			class="text-gray-600 italic"
 		>
 			Idle — waiting for next transaction.
@@ -41,7 +42,7 @@ function pct(current: number, total: number) {
 
 		<!-- Runner activity (user code executing) -->
 		<div
-			v-if="store.isRunning && !store.documentState.activity"
+			v-if="store.isRunning && !store.documentState.loading"
 			class="flex items-center gap-2 text-orange-400"
 		>
 			<span class="text-lg leading-none">{{ FRAMES[spinnerFrame] }}</span>
@@ -49,11 +50,13 @@ function pct(current: number, total: number) {
 		</div>
 
 		<!-- Document activity (commit / undo / redo) -->
-		<div v-if="store.documentState.activity" class="space-y-2">
+		<div v-if="store.documentState.loading" class="space-y-2">
 			<div class="flex items-center gap-2 text-green-400">
 				<span class="text-lg leading-none">{{ FRAMES[spinnerFrame] }}</span>
-				<span class="text-gray-400 w-14">{{ store.documentState.activity.method }}</span>
-				<span class="text-gray-300">{{ store.documentState.activity.message }}</span>
+				<span v-if="store.documentState.progress" class="text-gray-300">{{
+					store.documentState.progress.message
+				}}</span>
+				<span v-else class="text-gray-300">Working…</span>
 			</div>
 
 			<!-- Progress bar -->

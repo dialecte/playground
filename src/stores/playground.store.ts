@@ -8,7 +8,7 @@ import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
 import xmlFormat from 'xml-formatter'
 
-import type { DocumentState } from '@dialecte/core'
+import type { DocumentState, DialecteError } from '@dialecte/core'
 
 type SclDocument = ReturnType<typeof openSclDocument>
 
@@ -21,7 +21,7 @@ function defaultCode() {
 //   DATABASE_NAME — name of the current IndexedDB database
 //   helpers — type guards (isRawRecord, isTrackedRecord, isRecordOf, …)
 //             and converters (toRawRecord, toTrackedRecord, toRef, standardizeRecord, …)
-//   utils   — assert(condition, message)
+//   utils   — invariant(condition, message)
 // After each run, the XML output updates automatically.
 
 const document = openSclDocument({ type: 'local', databaseName: DATABASE_NAME })
@@ -49,6 +49,7 @@ export const usePlaygroundStore = defineStore('playground', () => {
 	const isRunning = ref(false)
 	const error = ref<string | null>(null)
 	const consoleEntries = ref<ConsoleEntry[]>([])
+	const problems = ref<DialecteError[]>([])
 
 	const { open: openNewFile, onChange } = useFileDialog({
 		accept: '.fsd, .asd, .xml, .scd, .ssd',
@@ -77,7 +78,6 @@ export const usePlaygroundStore = defineStore('playground', () => {
 	const documentState = reactive<DocumentState>({
 		loading: false,
 		error: null,
-		activity: null,
 		progress: null,
 		history: [],
 		lastUpdate: null,
@@ -151,6 +151,7 @@ export const usePlaygroundStore = defineStore('playground', () => {
 		isRunning.value = true
 		error.value = null
 		consoleEntries.value = []
+		problems.value = []
 
 		// Check for TypeScript errors before executing
 		try {
@@ -206,7 +207,7 @@ export const usePlaygroundStore = defineStore('playground', () => {
 				exportSclFile,
 				CoreHelpers,
 				CoreUtils,
-				databaseName.value,
+				projectName.value,
 			)
 
 			// Re-create document in case user code destroyed/recreated the DB
@@ -214,16 +215,29 @@ export const usePlaygroundStore = defineStore('playground', () => {
 			Object.assign(documentState, {
 				loading: false,
 				error: null,
-				activity: null,
 				progress: null,
 				history: [],
 				lastUpdate: null,
 			})
 			await refreshXml()
 		} catch (e) {
-			const msg = e instanceof Error ? e.message : String(e)
-			error.value = msg
-			consoleEntries.value.push({ type: 'error', args: [msg], timestamp: Date.now() })
+			const dialecteErr =
+				e instanceof Error &&
+				e.cause &&
+				typeof e.cause === 'object' &&
+				'code' in e.cause &&
+				'key' in e.cause
+					? (e.cause as DialecteError)
+					: null
+
+			if (dialecteErr) {
+				problems.value.push(dialecteErr)
+				error.value = dialecteErr.detail
+			} else {
+				const msg = e instanceof Error ? e.message : String(e)
+				error.value = msg
+				consoleEntries.value.push({ type: 'error', args: [msg], timestamp: Date.now() })
+			}
 		} finally {
 			console.log = origLog
 			console.warn = origWarn
@@ -245,8 +259,12 @@ export const usePlaygroundStore = defineStore('playground', () => {
 
 			// Rename to playground.scd so the DB is always called "playground"
 			const renamedFile = new File([file], 'playground.scd', { type: file.type })
-			await importSclFiles({ files: [renamedFile] })
-			databaseName.value = DEFAULT_DATABASE_NAME
+			const result = await importSclFiles({
+				files: [renamedFile],
+				projectName: DEFAULT_DATABASE_NAME,
+			})
+			projectName.value = DEFAULT_DATABASE_NAME
+			fileId.value = result.fileIds[0]
 
 			await refreshXml()
 			// No diff on fresh import
@@ -261,7 +279,8 @@ export const usePlaygroundStore = defineStore('playground', () => {
 		error.value = null
 		try {
 			await exportSclFile({
-				databaseName: databaseName.value,
+				projectName: projectName.value,
+				fileId: fileId.value,
 				extension: '.scd',
 				withDownload: true,
 			})
@@ -294,7 +313,7 @@ export const usePlaygroundStore = defineStore('playground', () => {
 		} catch {
 			// ignore
 		}
-		databaseName.value = DEFAULT_DATABASE_NAME
+		projectName.value = DEFAULT_DATABASE_NAME
 		code.value = defaultCode()
 		currentXmlString.value = ''
 		previousXmlString.value = ''
@@ -319,11 +338,12 @@ export const usePlaygroundStore = defineStore('playground', () => {
 		}
 	}
 	return {
-		databaseName,
+		projectName,
 		code,
 		isRunning,
 		error,
 		consoleEntries,
+		problems,
 		currentXmlString,
 		previousXmlString,
 		canUndo,
