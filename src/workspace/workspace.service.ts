@@ -1,5 +1,6 @@
 import { createFrameCoalescer } from './create-frame-coalescer'
 import { describeStateChange } from './describe-state-change'
+import { IDLE_DOCUMENT_STATE } from './workspace.constants'
 
 import { formatXml } from '@dialecte/core/utils'
 
@@ -21,14 +22,6 @@ import type {
 	Project,
 	ProjectChannelMessage,
 } from '@dialecte/core'
-
-const IDLE_DOCUMENT_STATE: DocumentState = {
-	loading: false,
-	error: null,
-	progress: null,
-	history: [],
-	lastUpdate: null,
-}
 
 //====== SINGLETON ======//
 
@@ -287,11 +280,8 @@ export async function importFile(params: { file: File }): Promise<void> {
 	})
 
 	const startedAt = performance.now()
-	const importResults = await project.import([file])
+	const importResult = await project.importFile(file)
 	const durationInMilliseconds = Math.round(performance.now() - startedAt)
-
-	const importResult = importResults[0]
-	if (importResult === undefined) throw new Error(`${file.name} produced no document.`)
 
 	attachDocument({ documentId: importResult.documentId, documentName: file.name })
 
@@ -315,7 +305,12 @@ export async function importFile(params: { file: File }): Promise<void> {
 export async function exportXml(): Promise<ExportedXml | null> {
 	if (activeProject === null || activeDocumentId === null) return null
 
-	const exported = await activeProject.export(activeDocumentId, { withDatabaseIds: true })
+	const exported = await activeProject.export({
+		documentId: activeDocumentId,
+		indent: false,
+		withDatabaseIds: true,
+		xmlDocument: true,
+	})
 	const serialized = new XMLSerializer().serializeToString(exported.xmlDocument)
 
 	return { xml: formatXml(serialized, { indent: '\t' }), filename: exported.filename }
@@ -325,7 +320,7 @@ export async function downloadFile(): Promise<void> {
 	const project = requireProject()
 	const documentId = requireDocumentId()
 
-	const exported = await project.export(documentId, { withDownload: true })
+	const exported = await project.export({ documentId, download: true })
 	publishEvent({ source: 'io', level: 'success', title: `Exported ${exported.filename}` })
 }
 

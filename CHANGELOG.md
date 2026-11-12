@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UNRELEASED]
 
+### Changed
+
+- Updated to `@dialecte/core` 0.10 and `@dialecte/scl` 0.16. A Save File that fails now shows in the Problems view; the saved file keeps each text value on its element's line.
+
 ## [0.2.0] - 2026-09-29
 
 ### Added
